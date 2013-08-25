@@ -6,7 +6,7 @@
 % Descripción: implementación de algorítmos de búsqueda de ruta óptima informados:
 %				1. Greedy:
 %				2. A*:
-%				3. 
+%				3. Jumping positions.
 
 -module(search).
 
