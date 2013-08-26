@@ -82,6 +82,12 @@ eventLoop(Canvas, Board, Pos, SquareType) ->
 	    Proc ! Pos,
 	    eventLoop(Canvas, Board, Pos, SquareType);
 
+	 %Modificado: obtener posición final
+	{get_goal, Proc} ->
+		Goal = get(finish),
+		Proc ! Goal,
+		eventLoop(Canvas, Board, Pos, SquareType);
+
 	{get_neighbors, Proc} ->
 	    Neighbors = neighbors(Board, Pos),
 	    io:format("neighbors ~w~n", [Neighbors]),
