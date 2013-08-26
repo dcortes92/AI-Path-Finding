@@ -31,7 +31,8 @@ board() ->
     list_to_tuple(lists:map(fun(_) -> ?EMPTY end, lists:seq(1, N*N))).
 
 start() ->
-    register(board, spawn(fun() ->
+    register(board, 
+    	spawn(fun() ->
 			   GS = gs:start(),
 			   Win = gs:create(window, GS, [{width, ?CANVASSIZE+100}, {height, ?CANVASSIZE+50}, {title, "Maze"}, {map, true}]),
 			   Canvas = gs:create(canvas, canvas, Win, [{x,5},{y,5},{width,?CANVASSIZE+1},{height,?CANVASSIZE+1}, {buttonpress, true}]),
@@ -82,12 +83,6 @@ eventLoop(Canvas, Board, Pos, SquareType) ->
 	    Proc ! Pos,
 	    eventLoop(Canvas, Board, Pos, SquareType);
 
-	 %Modificado: obtener posición final
-	{get_goal, Proc} ->
-		Goal = get(finish),
-		Proc ! Goal,
-		eventLoop(Canvas, Board, Pos, SquareType);
-
 	{get_neighbors, Proc} ->
 	    Neighbors = neighbors(Board, Pos),
 	    io:format("neighbors ~w~n", [Neighbors]),
@@ -106,6 +101,12 @@ eventLoop(Canvas, Board, Pos, SquareType) ->
 		_ ->
 		    eventLoop(Canvas, Board, Pos, SquareType)
 	    end;
+
+	{get_goal, Proc} -> 	 %Modificado: obtener posición final
+		Goal = get(finish),
+		Proc ! Goal,
+		eventLoop(Canvas, Board, Pos, SquareType);
+
 	{gs, save, click, _, _} ->
 	    FileName = gs:read(text,text),
 	    Start  = get(start),
@@ -133,11 +134,14 @@ neighbors(_,_,[]) -> [];
 neighbors(Board,Cell={R,C},[{OR,OC}|Rest]) ->
     Pos = calcPos(R+OR,C+OC),
     if
-	Pos == invalid -> neighbors(Board, Cell, Rest);
+		Pos == invalid -> neighbors(Board, Cell, Rest);
 	true ->
 	    case element(Pos, Board) of
 		?EMPTY ->
 		    [{R+OR,C+OC}|neighbors(Board, Cell, Rest)];
+		?FINISH ->
+	    [{R+OR,C+OC}|neighbors(Board, Cell, Rest)]; % -_- para que agregue la meta a los vecinos, de otro modo se encicla y
+	    											% nunca la encontraría.
 		_ ->
 		    neighbors(Board, Cell, Rest)
 	    end
