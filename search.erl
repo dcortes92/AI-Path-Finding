@@ -11,7 +11,7 @@
 -module(search).
 -author('dcortes92@hotmail.com').
 -import(board). %para utilizar las mismas funciones que se usan en board
--export([greedy/0, min/1, greedy_algorithm/2, esta/2, astar/0, astar_algorithm/6, prueba/1]).
+-export([greedy/0, min/1, greedy_algorithm/2, esta/2, g/2, euclides/2, agregarOpen/3]).
 
 %Obtiene el indice del menor de la lista junto con su indice
 min([]) -> error;
@@ -70,24 +70,19 @@ astar() ->
 	receive
 		{X, Y} -> 
 			board ! {get_pos, self()},
-			receive 											  %current,parent,f 
-				{A, B} -> spawn(search, astar_algorithm, [{X, Y}, [{A,B}, {}, {}], {}, [{A,B}], [], []]) %Se agrega el nodo inicial a la 																			%lista open
+			receive										 %Lista open
+				{A, B} -> spawn(search, astar_algorithm, [[{A, B}, 0, euclides({A,B}, {X,Y})],
+														 %Lista Closed
+														 [],
+														 %Actual
+														 [{A, B}, 0, euclides({A,B}, {X,Y})],
+														 %Objetivo
+														 {X,Y}])
 			end
 	end.
 
-			  %objetivo
-astar_algorithm({X, Y}, Current, Open, Closed, Vecinos, Ruta) ->
-	Esta = esta({X,Y}, Open),
-	if  Esta == yes -> found; %si se agrega el objetivo a la lista closed 
-	true -> 
-		if Open == [] -> error; %No hay ruta
-		true ->
-			board ! {get_neighbors, self()},
-			receive
-				{Vecinos, _} -> Vecinos
-			end
-		end
-	end.
+
+astar_algorithm(Open, Closed, Actual, {X, Y}) -> ok.
 
 
 
@@ -95,21 +90,24 @@ astar_algorithm({X, Y}, Current, Open, Closed, Vecinos, Ruta) ->
 %si un nodo está o no en alguna de las listas closed u opened.
 esta({_,_}, []) -> [];
 esta({X, Y}, [{X, Y}|_]) -> yes;
-esta({X, Y}, [H|T]) -> esta({X,Y}, T).
+esta({X, Y}, [_|T]) -> esta({X,Y}, T).
 
 
-prueba(Vecinos, Open, Closed) ->
-	%Procesar cada uno de los vecinos
-	Procesar = fun(Elemento) -> 
-		Esta = esta(Elemento, Closed),
-		if Esta == yes -> %Si está en closed se ignora
-			lists:delete(Vecinos, Elemento)
-		true-> %En otro caso preguntamos para ver si está en la open
-			Esta = esta(Elemento, Open),
-			if Esta == yes -> 
-			true -> %Si no está agregarlo a open y hacer current padre de este
-				lists:append(Open, Elemento),
+%Costo de ir de un punto X,Y a otro punto W,Z
+g({X, Y}, {W, Z}) when (X /= W) and (Y /= Z) -> 2;
+g(_,_) -> 1.
 
-		end
-	end,
-	lists:foreach(Procesar, [{1,1},{2,3}]).
+
+%Distancia euclediana entre 2 puntos
+euclides({X, Y}, {W, Z}) -> math:sqrt(math:pow(Z-Y, 2) + math:pow(W-X, 2)).
+
+
+%Agrega cada elemento al open de la forma [[{X,Y}, G({X,Y}), H({X,Y})]]
+agregarOpen([H|T], {X,Y}, Actual) ->
+[
+	[H, B, C] || 
+		B <- [Actual + g(H, {X, Y})],
+		C <- [euclides(H, {X,Y})]
+] ++ agregarOpen(T, {X,Y}, Actual);
+
+agregarOpen([], _, _) -> [].
