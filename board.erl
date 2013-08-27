@@ -107,6 +107,11 @@ eventLoop(Canvas, Board, Pos, SquareType) ->
 		Proc ! Goal,
 		eventLoop(Canvas, Board, Pos, SquareType);
 
+	{get_start, Proc} -> 	 %Modificado: obtener posición final
+		Start = get(start),
+		Proc ! Start,
+		eventLoop(Canvas, Board, Pos, SquareType);
+
 	{gs, save, click, _, _} ->
 	    FileName = gs:read(text,text),
 	    Start  = get(start),
@@ -207,6 +212,8 @@ movida(Canvas, X,Y, Board, SquareType) ->
 	    changeDisplay(Canvas, Board, NewBoard);
 	start -> 
 	    NewBoard = setStart(Row, Col, Board),
+	    {R, C} = get(start),
+	    put(start, {Row, Col}),
 	    changeDisplay(Canvas, Board, NewBoard);
 	finish -> 
 	    NewBoard = setFinish(Row, Col, Board),
