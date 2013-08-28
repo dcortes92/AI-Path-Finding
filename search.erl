@@ -89,7 +89,7 @@ astar() ->
 		{X, Y} -> 
 			board ! {get_pos, self()},
 			receive										 %Lista open
-				{A, B} -> spawn(search, astar_algorithm, [[{A, B}, 0, euclides({A,B}, {X,Y})],
+				{A, B} -> spawn(search, astar_algorithm, [[[{A, B}, 0, euclides({A,B}, {X,Y})]],
 														 %Actual
 														 [{A, B}, 0, euclides({A,B}, {X,Y})],
 														 %Objetivo
@@ -115,12 +115,11 @@ astar_algorithm(Open, Actual, {X, Y}, Padres) ->
 						io:format("No se ha encontrado una ruta."), 
 						fail; %En caso de que no se encuentre una ruta
 					true -> %Else si ya no hay vecinos pero queda algo en el fringe
-						%{Minimo, Indice} = menor_f(Open),
-						%Siguiente = lists:nth(Indice, Open),
-						%board ! {move, lists:nth(1, Siguiente)}, 
-						%NuevoOpen = lists:delete(Siguiente, Open), %Se quita el siguiente del fringe con su heuristica
-						%astar_algorithm(NuevoOpen, Actual, {X, Y}, Padres) %Para devolverse
-						io:format("Open es: ", Open)
+						{Minimo, Indice} = menor_f(Open),
+						Siguiente = lists:nth(Indice, Open),
+						board ! {move, lists:nth(1, Siguiente)}, 
+						NuevoOpen = lists:delete(Siguiente, Open), %Se quita el siguiente del fringe con su heuristica
+						astar_algorithm(NuevoOpen, Siguiente, {X, Y}, Padres) %Para devolverse
 					end;
 				{Celdas, _} -> %En otro caso, se mueve a la mejor celda y se quita esa
 										 %celda de las celdas visitadas.
@@ -131,7 +130,7 @@ astar_algorithm(Open, Actual, {X, Y}, Padres) ->
                     NuevoOpen = lists:delete(Siguiente, OpenTemp),
 					%Se agregan a las heuristicas y los vecinos al frige a las estructuras ya creadas
 					%excepto el del campo escodgido.
-                    astar_algorithm(lists:append(Open, NuevoOpen), Actual, {X, Y}, Padres) 
+                    astar_algorithm(lists:append(Open, NuevoOpen), Siguiente, {X, Y}, Padres) 
 			end
 	end.
 
