@@ -5,14 +5,14 @@
 % Daniel Cortés Sáenz, 201120152
 % Descripción: implementación de algorítmos de búsqueda de ruta óptima informados:
 %				1. Greedy: best first, basado en tomar la ruta con el menor h(x)
-%				2. A*:
+%				2. A*: se basa en tomar la ruta con el menor F(x) = G(x) + H(x)
 %				3. Jumping positions.
 
 -module(search).
 -author('dcortes92@hotmail.com').
 -import(board). %para utilizar las mismas funciones que se usan en board
--export([greedy/0, min/1, greedy_algorithm/2, g/2, euclides/2, astar/0, astar_algorithm/4, 
-		agregarOpen/4, menor_f/1, esta/2]).
+-export([greedy/0, min/1, greedy_algorithm/2, euclides/2, astar/0, astar_algorithm/3, 
+		astar_algorithm_proc_vecinos/5, agregarOpen/4, menor_f/1, esta/2]).
 
 %Obtiene el indice del menor de la lista junto con su indice
 min([]) -> error;
@@ -30,8 +30,8 @@ menor_f([H|T]) -> menor_f_aux(T, H, 1, 2).
 
 menor_f_aux([], Menor, IndiceMin, _) -> {Menor, IndiceMin};
 menor_f_aux([T|C], Menor, IndiceMin, IndiceActual) -> 
-	FT = calcular_f(lists:nth(2, T), lists:nth(3, T)),
-	FMen = calcular_f(lists:nth(2, Menor), lists:nth(3, Menor)),
+	FT = calcular_f(lists:nth(3, T), lists:nth(4, T)),
+	FMen = calcular_f(lists:nth(3, Menor), lists:nth(4, Menor)),
 	if(FT < FMen) ->
 		menor_f_aux(C, T, IndiceActual, IndiceActual+1);
 	true ->
@@ -69,13 +69,13 @@ greedy_algorithm({X, Y}, {Fringe, Heuristica}) ->
 						NuevoHeuristica = lists:delete(Minimo, Heuristica),
 						greedy_algorithm({X, Y}, {NuevoFringe,NuevoHeuristica}) %Para devolverse
 					end;
-				{Celdas, Heuristicas} -> %En otro caso, se mueve a la mejor celda y se quita esa
+				{Fringes, Heuristicas} -> %En otro caso, se mueve a la mejor celda y se quita esa
 										 %celda de las celdas visitadas.
                     {Minimo, Indice} = min(Heuristicas),
-                    Siguiente = lists:nth(Indice, Celdas),
+                    Siguiente = lists:nth(Indice, Fringes),
                     board ! {move, Siguiente},
-                    NuevoFringe = lists:delete(Siguiente, Fringe),
-					NuevoHeuristica = lists:delete(Minimo, Heuristica),
+                    NuevoFringe = lists:delete(Siguiente, Fringes),
+					NuevoHeuristica = lists:delete(Minimo, Heuristicas),
 					%Se agregan a las heuristicas y los vecinos al frige a las estructuras ya creadas
 					%excepto el del campo escodgido.
                     greedy_algorithm({X, Y}, {lists:append(Fringe, NuevoFringe), lists:append(Heuristica, NuevoHeuristica)}) 
@@ -88,52 +88,81 @@ astar() ->
 	receive
 		{X, Y} -> 
 			board ! {get_pos, self()},
-			receive										 %Lista open
-				{A, B} -> spawn(search, astar_algorithm, [[[{A, B}, 0, euclides({A,B}, {X,Y})]],
-														 %Actual
-														 [{A, B}, 0, euclides({A,B}, {X,Y})],
+			receive										 %Lista open, contiene el nodo inicial
+														 %			 Padre, G, H
+				{A, B} -> spawn(search, astar_algorithm, [[[{A, B}, {A, B}, 0, euclides({A,B},{X,Y})]],
+														 %Lista closed
+														 [],
 														 %Objetivo
-														 {X,Y},
-														 %Lista de padres
-														 []])
+														 {X,Y}])
 			end
 	end.
 
-%Logica del algoritmo astar
-astar_algorithm(Open, Actual, {X, Y}, Padres) -> 
+astar_algorithm(Open, Closed, {X,Y}) ->
 	board ! {get_pos, self()},
 	receive
-		{I, J} when (I == X) and (J == Y) -> %En caso de que estemos en el objetivo
-			io:format("Encontrado, calculando ruta...~n"),
+		{I, J} when (I == X) and (J == Y) -> %Primero se pregunta si se ha llegado al objetivo
+			io:format("Ruta encontrada, reconstruyendo camino..."),
 			epicwin;
 		{_,_} ->
-			%Buscar el cuadro con el menor F en la lista abierta
-			board ! {get_neighbors, self()},
-			receive 
-				{[], _} -> %Si ya no hay vecinos
-					if Open == [] -> %Si no hay vecinos y el fringe está vacío
-						io:format("No se ha encontrado una ruta."), 
-						fail; %En caso de que no se encuentre una ruta
-					true -> %Else si ya no hay vecinos pero queda algo en el fringe
-						{Minimo, Indice} = menor_f(Open),
-						Siguiente = lists:nth(Indice, Open),
-						board ! {move, lists:nth(1, Siguiente)}, 
-						NuevoOpen = lists:delete(Siguiente, Open), %Se quita el siguiente del fringe con su heuristica
-						astar_algorithm(NuevoOpen, Siguiente, {X, Y}, Padres) %Para devolverse
-					end;
-				{Celdas, _} -> %En otro caso, se mueve a la mejor celda y se quita esa
-										 %celda de las celdas visitadas.
-					OpenTemp = agregarOpen( Celdas, {X,Y}, lists:nth(2, Actual), lists:nth(1, Actual) ),
-                    {Minimo, Indice} = menor_f(OpenTemp),
-                    Siguiente = lists:nth(Indice, OpenTemp),
-                    board ! {move, lists:nth(1,Siguiente)},
-                    NuevoOpen = lists:delete(Siguiente, OpenTemp),
-					%Se agregan a las heuristicas y los vecinos al frige a las estructuras ya creadas
-					%excepto el del campo escodgido.
-                    astar_algorithm(lists:append(Open, NuevoOpen), Siguiente, {X, Y}, Padres) 
+			if Open == [] ->
+				io:format("Ruta no encontrada."),
+				epicfail;
+			true -> %Comienza el despiche
+				% 1. Se obtiene el menor 
+				{MenorF, Indice} = menor_f(Open),
+				% 2. Se mueve a la lista cerrada
+				NuevaClosed = lists:append([MenorF], Closed),
+				% 4. Se borra de la lista abierta y nos movemos a esa posición
+				NuevaOpen = lists:delete(Indice, Open),
+				board ! {move, lists:nth(1, MenorF)},
+				% 3. Se hace para cada uno de los vecinos
+				board ! {get_neighbors, self()},
+				receive 
+					{[], _} -> %No hay vecinos pero queda algo en la lista Open
+						{MenorF, Indice} = menor_f(NuevaOpen), %Se obtiene el menor
+						board ! {move, lists:nth(1, MenorF)}, %Y nos movemos ahí, lo borramos de Open
+						astar_algorithm(lists:delete(lists:nth(Indice, NuevaOpen), NuevaOpen), Closed, {X, Y}); %Backtrack
+						
+					{Vecinos, _} -> %Si hay vecinos
+						%Procesar cada uno de los vecinos y obtener una nueva lista open
+						astar_algorithm(
+							astar_algorithm_proc_vecinos(Vecinos, NuevaOpen, NuevaClosed, MenorF, {X,Y}), 
+							NuevaClosed, {X, Y})
+				end
 			end
 	end.
 
+
+%Procesar los vecinos del cuadro actual
+							%vecinos  						%Objetivo
+astar_algorithm_proc_vecinos([H|T], Open, Closed, NodoActual, {X,Y}) ->
+	EstaClosed = esta(H, Closed),
+	%GValue = lists:nth(3, H),
+	CurrentGValue = lists:nth(3, NodoActual),
+	CurrentHValue = lists:nth(4, NodoActual),
+	if EstaClosed == 1->
+		%Si and CurrentGValue < GValue
+		%Cambiar g del vecino y el padre del vecino sería el nodo actual
+		astar_algorithm_proc_vecinos(T, Open, Closed, NodoActual, {X,Y}),
+		ok;
+	true ->
+		EstaOpen = esta(H, Open),
+		if EstaOpen == 1->
+			%Si and CurrentGValue < GValue 
+			%Cambiar g del vecino y el padre del vecino sería el nodo actual
+			astar_algorithm_proc_vecinos(T, Open, Closed, NodoActual, {X,Y}),
+			ok;
+		true ->
+			io:format("Entra aqui~n"),
+			NuevaOpen = agregarOpen(H, {X,Y}, CurrentGValue, CurrentHValue),
+			astar_algorithm_proc_vecinos(T, lists:append(NuevaOpen, Open), Closed, NodoActual, {X,Y})
+		end
+	end;
+
+
+astar_algorithm_proc_vecinos([], Open, _, _, _) ->
+	Open.
 
 
 %Para saber si un punto x,y está en una lista. Se usa en el A* para saber
@@ -146,22 +175,25 @@ esta({X,Y}, [H|T]) ->
 	true->
 		esta({X,Y}, T)
 	end.
- 
-%Costo de ir de un punto X,Y a otro punto W,Z
-g({X, Y}, {W, Z}) when (X /= W) and (Y /= Z) -> 2;
-g(_,_) -> 1.
-
 
 %Distancia euclediana entre 2 puntos
-euclides({X, Y}, {W, Z}) -> math:sqrt(math:pow(Z-Y, 2) + math:pow(W-X, 2)).
+euclides({X, Y}, {W, Z}) -> math:sqrt(math:pow(X-W, 2) + math:pow(Y-Z, 2)).
 
 
 %Agrega cada elemento al open de la forma [[{X,Y}, G({X,Y}), H({X,Y})]]
 agregarOpen([H|T], {X,Y}, Actual, {A1,A2}) ->
 [
-	[H, B, C] || 
-		B <- [Actual + g(H, {A1, A2})],
-		C <- [euclides(H, {X,Y})]
+	[H, B, C, D] ||
+		B <- {X,Y}, 
+		C <- [Actual + 1], % El costo de moverse en cualquier dirección es 1
+		D <- [euclides(H, {X,Y})]
 ] ++ agregarOpen(T, {X,Y}, Actual, {A1,A2});
+
+agregarOpen(H, {X,Y}, Actual, _) ->
+[
+	[H, B, C] || 
+		B <- [Actual + 1], % El costo de moverse en cualquier dirección es 1
+		C <- [euclides(H, {X,Y})]
+];
 
 agregarOpen([], _, _, _) -> [].
