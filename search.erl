@@ -12,7 +12,7 @@
 -author('dcortes92@hotmail.com').
 -import(board). %para utilizar las mismas funciones que se usan en board
 -export([greedy/0, min/1, greedy_algorithm/2, euclides/2, astar/0, astar_algorithm/3, 
-		astar_algorithm_proc_vecinos/5, agregarOpen/4, menor_f/1, esta/2]).
+		astar_algorithm_proc_vecinos/5, agregarOpen/3, menor_f/1, esta/3]).
 
 %Obtiene el indice del menor de la lista junto con su indice
 min([]) -> error;
@@ -102,7 +102,8 @@ astar_algorithm(Open, Closed, {X,Y}) ->
 	board ! {get_pos, self()},
 	receive
 		{I, J} when (I == X) and (J == Y) -> %Primero se pregunta si se ha llegado al objetivo
-			io:format("Ruta encontrada, reconstruyendo camino..."),
+			io:format("Ruta encontrada, reconstruyendo camino...~n"),
+			lists:foreach(fun(E) -> io:format("~p~n", [E]) end, Open),
 			epicwin;
 		{_,_} ->
 			if Open == [] ->
@@ -137,25 +138,29 @@ astar_algorithm(Open, Closed, {X,Y}) ->
 %Procesar los vecinos del cuadro actual
 							%vecinos  						%Objetivo
 astar_algorithm_proc_vecinos([H|T], Open, Closed, NodoActual, {X,Y}) ->
-	EstaClosed = esta(H, Closed),
-	%GValue = lists:nth(3, H),
+	EstaClosed = esta(H, Closed, 0),
 	CurrentGValue = lists:nth(3, NodoActual),
-	CurrentHValue = lists:nth(4, NodoActual),
-	if EstaClosed == 1->
-		%Si and CurrentGValue < GValue
-		%Cambiar g del vecino y el padre del vecino sería el nodo actual
+	if EstaClosed /= 0->
 		astar_algorithm_proc_vecinos(T, Open, Closed, NodoActual, {X,Y}),
 		ok;
 	true ->
-		EstaOpen = esta(H, Open),
-		if EstaOpen == 1->
-			%Si and CurrentGValue < GValue 
-			%Cambiar g del vecino y el padre del vecino sería el nodo actual
-			astar_algorithm_proc_vecinos(T, Open, Closed, NodoActual, {X,Y}),
-			ok;
+		EstaOpen = esta(H, Open, 0),
+		if EstaOpen /= 0 ->
+			NodoVecino = lists:nth(EstaOpen, Open), %Obtiene el Vecino
+			GValue = lists:nth(3, NodoVecino),
+			HValue = lists:nth(4, NodoVecino),
+			if CurrentGValue =< GValue ->
+				%Si and CurrentGValue < GValue
+				%Cambiar g del vecino y el padre del vecino sería el nodo actual
+				NuevaOpen = lists:delete(NodoVecino, Open),
+				astar_algorithm_proc_vecinos(T, 
+					lists:append([H, lists:nth(2, NodoActual), CurrentGValue, HValue], NuevaOpen), 
+					Closed, NodoActual, {X,Y});
+			true ->
+				astar_algorithm_proc_vecinos(T, Open, Closed, NodoActual, {X,Y})
+			end;
 		true ->
-			io:format("Entra aqui~n"),
-			NuevaOpen = agregarOpen(H, {X,Y}, CurrentGValue, CurrentHValue),
+			NuevaOpen = agregarOpen(H, {X,Y}, NodoActual),
 			astar_algorithm_proc_vecinos(T, lists:append(NuevaOpen, Open), Closed, NodoActual, {X,Y})
 		end
 	end;
@@ -167,13 +172,13 @@ astar_algorithm_proc_vecinos([], Open, _, _, _) ->
 
 %Para saber si un punto x,y está en una lista. Se usa en el A* para saber
 %si un nodo está o no en alguna de las listas closed u opened.
-esta(_, []) -> 0;
-esta({X,Y}, [H|T]) ->
+esta(_, [], _) -> 0;
+esta({X,Y}, [H|T], C) ->
 	{I,J} = lists:nth(1, H),
 	if (I == X) and (J == Y)->
-		1;
+		C;
 	true->
-		esta({X,Y}, T)
+		esta({X,Y}, T, C+1)
 	end.
 
 %Distancia euclediana entre 2 puntos
@@ -181,19 +186,20 @@ euclides({X, Y}, {W, Z}) -> math:sqrt(math:pow(X-W, 2) + math:pow(Y-Z, 2)).
 
 
 %Agrega cada elemento al open de la forma [[{X,Y}, G({X,Y}), H({X,Y})]]
-agregarOpen([H|T], {X,Y}, Actual, {A1,A2}) ->
+agregarOpen([H|T], {X,Y}, NodoActual) ->
 [
 	[H, B, C, D] ||
-		B <- {X,Y}, 
-		C <- [Actual + 1], % El costo de moverse en cualquier dirección es 1
+		B <- [lists:nth(2, NodoActual)], 
+		C <- [lists:nth(3, NodoActual) + 1], % El costo de moverse en cualquier dirección es 1
 		D <- [euclides(H, {X,Y})]
-] ++ agregarOpen(T, {X,Y}, Actual, {A1,A2});
+] ++ agregarOpen(T, {X,Y}, NodoActual);
 
-agregarOpen(H, {X,Y}, Actual, _) ->
+agregarOpen(H, {X,Y}, NodoActual) ->
 [
-	[H, B, C] || 
-		B <- [Actual + 1], % El costo de moverse en cualquier dirección es 1
-		C <- [euclides(H, {X,Y})]
+	[H, B, C, D] || 
+		B <- [lists:nth(2, NodoActual)], 
+		C <- [lists:nth(3, NodoActual) + 1], % El costo de moverse en cualquier dirección es 1
+		D <- [euclides(H, {X,Y})]
 ];
 
-agregarOpen([], _, _, _) -> [].
+agregarOpen([], _, _) -> [].
