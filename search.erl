@@ -102,8 +102,10 @@ astar_algorithm(Open, Closed, {X,Y}) ->
 	board ! {get_pos, self()},
 	receive
 		{I, J} when (I == X) and (J == Y) -> %Primero se pregunta si se ha llegado al objetivo
-			io:format("Ruta encontrada, reconstruyendo camino...~n"),
-			lists:foreach(fun(E) -> io:format("~p~n", [E]) end, Open),
+			%Se calcula la ruta
+			Ruta = astar_reconstruir_ruta(Closed),
+			io:format("Ruta~n"),
+			lists:foreach(fun(C) -> io:format("~p ->", [C]) end, lists:reverse(Ruta)),
 			epicwin;
 		{_,_} ->
 			if Open == [] ->
@@ -134,6 +136,13 @@ astar_algorithm(Open, Closed, {X,Y}) ->
 			end
 	end.
 
+%Reconstruir ruta
+astar_reconstruir_ruta([H|T]) ->
+[
+	R || R <- [lists:nth(1, H)]
+] ++ astar_reconstruir_ruta(T);
+
+astar_reconstruir_ruta([]) -> [].
 
 %Procesar los vecinos del cuadro actual
 							%vecinos  						%Objetivo
@@ -141,8 +150,17 @@ astar_algorithm_proc_vecinos([H|T], Open, Closed, NodoActual, {X,Y}) ->
 	EstaClosed = esta(H, Closed, 0),
 	CurrentGValue = lists:nth(3, NodoActual),
 	if EstaClosed /= 0->
-		astar_algorithm_proc_vecinos(T, Open, Closed, NodoActual, {X,Y}),
-		ok;
+		NodoVecino = lists:nth(EstaClosed, Closed), %Obtiene el Vecino
+		GValue = lists:nth(3, NodoVecino),
+		HValue = lists:nth(4, NodoVecino),
+		if CurrentGValue =< GValue ->
+			NuevaClosed = lists:delete(NodoVecino, Closed),
+			astar_algorithm_proc_vecinos(T, 
+			lists:append([H, lists:nth(2, NodoActual), CurrentGValue, HValue], Open), 
+			NuevaClosed, NodoActual, {X,Y});
+		true ->
+			astar_algorithm_proc_vecinos(T, Open, Closed, NodoActual, {X,Y})
+		end;
 	true ->
 		EstaOpen = esta(H, Open, 0),
 		if EstaOpen /= 0 ->
@@ -150,6 +168,7 @@ astar_algorithm_proc_vecinos([H|T], Open, Closed, NodoActual, {X,Y}) ->
 			GValue = lists:nth(3, NodoVecino),
 			HValue = lists:nth(4, NodoVecino),
 			if CurrentGValue =< GValue ->
+				io:format("Entra aqui~n"),
 				%Si and CurrentGValue < GValue
 				%Cambiar g del vecino y el padre del vecino sería el nodo actual
 				NuevaOpen = lists:delete(NodoVecino, Open),
@@ -189,7 +208,7 @@ euclides({X, Y}, {W, Z}) -> math:sqrt(math:pow(X-W, 2) + math:pow(Y-Z, 2)).
 agregarOpen([H|T], {X,Y}, NodoActual) ->
 [
 	[H, B, C, D] ||
-		B <- [lists:nth(2, NodoActual)], 
+		B <- [lists:nth(1, NodoActual)], 
 		C <- [lists:nth(3, NodoActual) + 1], % El costo de moverse en cualquier dirección es 1
 		D <- [euclides(H, {X,Y})]
 ] ++ agregarOpen(T, {X,Y}, NodoActual);
@@ -197,7 +216,7 @@ agregarOpen([H|T], {X,Y}, NodoActual) ->
 agregarOpen(H, {X,Y}, NodoActual) ->
 [
 	[H, B, C, D] || 
-		B <- [lists:nth(2, NodoActual)], 
+		B <- [lists:nth(1, NodoActual)], 
 		C <- [lists:nth(3, NodoActual) + 1], % El costo de moverse en cualquier dirección es 1
 		D <- [euclides(H, {X,Y})]
 ];
