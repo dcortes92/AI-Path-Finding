@@ -102,16 +102,20 @@ astar_algorithm(Open, Closed, {X,Y}) ->
 	board ! {get_pos, self()},
 	receive
 		{I, J} when (I == X) and (J == Y) -> %Primero se pregunta si se ha llegado al objetivo
-			%Se calcula la ruta
-			Ruta = astar_reconstruir_ruta(Closed),
-			io:format("Ruta~n"),
-			lists:foreach(fun(C) -> io:format("~p ->", [C]) end, lists:reverse(Ruta)),
+			%Construir ruta
+			io:format("~n~nClosed~n"),
+			%lists:foreach(fun(C) -> io:format("~p~n", [C]) end, Closed),
+			%Ruta = astar_reconstruir_ruta(astar_ordenar_closed(Closed)),
+			%io:format("~n~nRuta contrada~n"),
+			%lists:foreach(fun(C) -> io:format("~p -> ", [C]) end, lists:reverse(Ruta)),
+			io:format("~p~n", [Closed]),
+			%io:format("~n"),
 			epicwin;
-		{_,_} ->
+		{_, _} ->
 			if Open == [] ->
 				io:format("Ruta no encontrada."),
 				epicfail;
-			true -> %Comienza el despiche
+			true -> %Comienza el algoritmo
 				% 1. Se obtiene el menor 
 				{MenorF, Indice} = menor_f(Open),
 				% 2. Se mueve a la lista cerrada
@@ -119,7 +123,7 @@ astar_algorithm(Open, Closed, {X,Y}) ->
 				% 4. Se borra de la lista abierta y nos movemos a esa posición
 				NuevaOpen = lists:delete(Indice, Open),
 				board ! {move, lists:nth(1, MenorF)},
-				% 3. Se hace para cada uno de los vecinos
+				% 5. Se hace para cada uno de los vecinos
 				board ! {get_neighbors, self()},
 				receive 
 					{[], _} -> %No hay vecinos pero queda algo en la lista Open
@@ -136,13 +140,19 @@ astar_algorithm(Open, Closed, {X,Y}) ->
 			end
 	end.
 
-%Reconstruir ruta
-astar_reconstruir_ruta([H|T]) ->
-[
-	R || R <- [lists:nth(1, H)]
-] ++ astar_reconstruir_ruta(T);
+%Ordenar lista closed
+%astar_ordenar_closed([[A,B,X1,Y1]|TG]) ->
+%[[A,B,X1,Y1]]++
+%[
+%	[H|astar_ordenar_closed(TG -- [H])] || H <- TG
+%];
 
-astar_reconstruir_ruta([]) -> [].
+%astar_ordenar_closed([H]) -> [H].
+
+%Se reconstruye la ruta con base en la lista cerrada.
+%astar_reconstruir_ruta([H|T]) ->
+%	{X, Y} = lists:nth(1, H),
+%	astar_reconstruir_ruta_aux(T, {X, Y}),
 
 %Procesar los vecinos del cuadro actual
 							%vecinos  						%Objetivo
@@ -168,7 +178,6 @@ astar_algorithm_proc_vecinos([H|T], Open, Closed, NodoActual, {X,Y}) ->
 			GValue = lists:nth(3, NodoVecino),
 			HValue = lists:nth(4, NodoVecino),
 			if CurrentGValue =< GValue ->
-				io:format("Entra aqui~n"),
 				%Si and CurrentGValue < GValue
 				%Cambiar g del vecino y el padre del vecino sería el nodo actual
 				NuevaOpen = lists:delete(NodoVecino, Open),
