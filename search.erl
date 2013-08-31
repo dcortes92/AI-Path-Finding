@@ -195,7 +195,7 @@ esta({X,Y}, [H|T], C) ->
 		esta({X,Y}, T, C+1)
 	end.
 
-%Distancia euclediana entre 2 puntos
+%Distancia de euclides entre 2 puntos. Esta es la heurística que usa A*
 euclides({X, Y}, {W, Z}) -> math:sqrt(math:pow(X-W, 2) + math:pow(Y-Z, 2)).
 
 
