@@ -123,6 +123,10 @@ astar_algorithm(Open, Closed, {X,Y}) ->
 
 %Se reconstruye la ruta recorriendo la lista Closed.
 %Imprimir la lista Closed para entender la idea (línea 90).
+%A veces, se imprime en esta lista el cuadro objetivo. Esto pasa porque
+%el algoritmo debe detenerse cuando se agregue el X,Y objetivo a la lista open
+%sin embargo, en este caso, el algoritmo se detiene hasta que se está posicionado
+%en el cuadro objetivo.
 astar_reconstruir_ruta([[{X, Y}, {PadreX, PadreY}, _, _]|T]) ->
 	[{X, Y}] ++ astar_reconstruir_ruta_aux(T, {PadreX, PadreY}).
 
