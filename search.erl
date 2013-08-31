@@ -14,31 +14,6 @@
 -export([greedy/0, min/1, greedy_algorithm/2, euclides/2, astar/0, astar_algorithm/3, 
 		astar_algorithm_proc_vecinos/5, agregarOpen/3, menor_f/1, esta/3]).
 
-%Obtiene el indice del menor de la lista junto con su indice
-min([]) -> error;
-min([H]) -> {H, 1};
-min([H|T]) -> min_aux(T, H, 1, 2).
-
-min_aux([], Min, IndiceMin, _) -> {Min, IndiceMin};
-min_aux([T|C], Min, _, IndiceActual) when(T < Min) -> min_aux(C, T, IndiceActual, IndiceActual+1);
-min_aux([_|C], Min, IndiceMin, IndiceActual) -> min_aux(C, Min, IndiceMin, IndiceActual+1).
-
-%Obtiene el cuadro con el menor F de la lista y su posición en esta lista (para luego borrarlo)
-menor_f([]) -> [];
-menor_f([H]) -> {H,1}; %Si solo hay un elemento retorne ese punto X,Y
-menor_f([H|T]) -> menor_f_aux(T, H, 1, 2).
-
-menor_f_aux([], Menor, IndiceMin, _) -> {Menor, IndiceMin};
-menor_f_aux([T|C], Menor, IndiceMin, IndiceActual) -> 
-	FT = calcular_f(lists:nth(3, T), lists:nth(4, T)),
-	FMen = calcular_f(lists:nth(3, Menor), lists:nth(4, Menor)),
-	if(FT < FMen) ->
-		menor_f_aux(C, T, IndiceActual, IndiceActual+1);
-	true ->
-		menor_f_aux(C, Menor, IndiceMin, IndiceActual+1)
-	end.
-
-calcular_f(G, H) -> G + H.
 
 %Algoritmo greedy best-first.
 greedy() -> 
@@ -82,6 +57,15 @@ greedy_algorithm({X, Y}, {Fringe, Heuristica}) ->
 			end
 	end.
 
+%Obtiene el indice del menor de la lista junto con su indice
+min([]) -> error;
+min([H]) -> {H, 1};
+min([H|T]) -> min_aux(T, H, 1, 2).
+
+min_aux([], Min, IndiceMin, _) -> {Min, IndiceMin};
+min_aux([T|C], Min, _, IndiceActual) when(T < Min) -> min_aux(C, T, IndiceActual, IndiceActual+1);
+min_aux([_|C], Min, IndiceMin, IndiceActual) -> min_aux(C, Min, IndiceMin, IndiceActual+1).
+
 %Algoritmo A*.
 astar() ->
 	board ! {get_goal, self()},
@@ -103,17 +87,14 @@ astar_algorithm(Open, Closed, {X,Y}) ->
 	receive
 		{I, J} when (I == X) and (J == Y) -> %Primero se pregunta si se ha llegado al objetivo
 			%Construir ruta
-			io:format("~n~nClosed~n"),
-			%lists:foreach(fun(C) -> io:format("~p~n", [C]) end, Closed),
-			%Ruta = astar_reconstruir_ruta(astar_ordenar_closed(Closed)),
-			%io:format("~n~nRuta contrada~n"),
-			%lists:foreach(fun(C) -> io:format("~p -> ", [C]) end, lists:reverse(Ruta)),
-			io:format("~p~n", [Closed]),
-			%io:format("~n"),
+			%io:format("~p~n", [Closed]), %Descomentar esta línea para ver cómo se reconstruye la ruta
+			Ruta = astar_reconstruir_ruta(Closed),
+			io:format("~n~nRuta encontrada:~n~n"),
+			io:format("~p~n", [lists:reverse(Ruta)]),
 			epicwin;
 		{_, _} ->
 			if Open == [] ->
-				io:format("Ruta no encontrada."),
+				io:format("~n~n*** Ruta no encontrada. ***"),
 				epicfail;
 			true -> %Comienza el algoritmo
 				% 1. Se obtiene el menor 
@@ -140,19 +121,20 @@ astar_algorithm(Open, Closed, {X,Y}) ->
 			end
 	end.
 
-%Ordenar lista closed
-%astar_ordenar_closed([[A,B,X1,Y1]|TG]) ->
-%[[A,B,X1,Y1]]++
-%[
-%	[H|astar_ordenar_closed(TG -- [H])] || H <- TG
-%];
+%Se reconstruye la ruta recorriendo la lista Closed.
+%Imprimir la lista Closed para entender la idea (línea 90).
+astar_reconstruir_ruta([[{X, Y}, {PadreX, PadreY}, _, _]|T]) ->
+	[{X, Y}] ++ astar_reconstruir_ruta_aux(T, {PadreX, PadreY}).
 
-%astar_ordenar_closed([H]) -> [H].
+astar_reconstruir_ruta_aux([[{X, Y}, {PadreX, PadreY}, _, _]|T], {PadreX1, PadreY1}) 
+	when (X == PadreX1) and (Y == PadreY1) ->
+		[{X, Y}] ++ astar_reconstruir_ruta_aux(T, {PadreX, PadreY});
 
-%Se reconstruye la ruta con base en la lista cerrada.
-%astar_reconstruir_ruta([H|T]) ->
-%	{X, Y} = lists:nth(1, H),
-%	astar_reconstruir_ruta_aux(T, {X, Y}),
+astar_reconstruir_ruta_aux([_|T], {X, Y}) ->
+	astar_reconstruir_ruta_aux(T, {X, Y});
+
+astar_reconstruir_ruta_aux([], _) -> [].
+
 
 %Procesar los vecinos del cuadro actual
 							%vecinos  						%Objetivo
@@ -231,3 +213,20 @@ agregarOpen(H, {X,Y}, NodoActual) ->
 ];
 
 agregarOpen([], _, _) -> [].
+
+%Obtiene el cuadro con el menor F de la lista y su posición en esta lista (para luego borrarlo)
+menor_f([]) -> [];
+menor_f([H]) -> {H,1}; %Si solo hay un elemento retorne ese punto X,Y
+menor_f([H|T]) -> menor_f_aux(T, H, 1, 2).
+
+menor_f_aux([], Menor, IndiceMin, _) -> {Menor, IndiceMin};
+menor_f_aux([T|C], Menor, IndiceMin, IndiceActual) -> 
+	FT = calcular_f(lists:nth(3, T), lists:nth(4, T)),
+	FMen = calcular_f(lists:nth(3, Menor), lists:nth(4, Menor)),
+	if(FT < FMen) ->
+		menor_f_aux(C, T, IndiceActual, IndiceActual+1);
+	true ->
+		menor_f_aux(C, Menor, IndiceMin, IndiceActual+1)
+	end.
+
+calcular_f(G, H) -> G + H.
