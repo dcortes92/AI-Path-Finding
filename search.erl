@@ -6,7 +6,11 @@
 % Descripción: implementación de algorítmos de búsqueda de ruta óptima informados:
 %				1. Greedy: best first, basado en tomar la ruta con el menor h(x)
 %				2. A*: se basa en tomar la ruta con el menor F(x) = G(x) + H(x)
-%				3. Jumping positions.
+%				3. Jumping positions: saltos de posiciones hasta llegar al objetivo. Mejor rendimiento que A*.
+%
+% Uso: search:greedy()
+%	   search:astar()
+%	   search:jp()
 
 -module(search).
 -author('dcortes92@hotmail.com').
@@ -19,6 +23,7 @@
 greedy() -> 
 	board ! { get_goal, self() }, 
 	receive 
+								%Le mandamos el Nodo final, {Fringe, Vecinos}
 		{X, Y} -> spawn(search, greedy_algorithm, [{X, Y}, {[], []}])
 	end.
 

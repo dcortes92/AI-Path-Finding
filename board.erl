@@ -91,6 +91,12 @@ eventLoop(Canvas, Board, Pos, SquareType) ->
 	    changeDisplay(Canvas, Board, NewBoard),
 	    eventLoop(Canvas, NewBoard, Pos, SquareType);
 
+	{get_jpneighbors, Proc} -> %Modificado: obtener los vecinos sin marcarlos en el tablero.
+		Neighbors = neighbors(Board, Pos),
+	    io:format("neighbors ~w~n", [Neighbors]),
+	    Proc ! Neighbors,
+	    eventLoop(Canvas, Board, Pos, SquareType);
+
 	{move, NewPos = {Row,Col}} ->
 	    Cell = calcPos(Row, Col),
 	    case element(Cell, Board) of
@@ -101,6 +107,22 @@ eventLoop(Canvas, Board, Pos, SquareType) ->
 		_ ->
 		    eventLoop(Canvas, Board, Pos, SquareType)
 	    end;
+
+	{movejp, NewPos = {Row,Col}} -> %Modificado: se mueve a una posición sin marcarlo en el tablero.
+		Cell = calcPos(Row, Col),
+	    eventLoop(Canvas, Board, NewPos, SquareType);
+
+	{jump, NewPos = {Row, Col}} -> %Modificado: salta a cualquier posición y la marca en el tablero.
+		Cell = calcPos(Row, Col),
+		case element(Cell, Board) of
+		?WALL ->
+			eventLoop(Canvas, Board, Pos, SquareType);
+		_->
+		    NewBoard = updateCells(updateCells(Board, [Pos], ?VISITED), [NewPos], ?CURRENT),
+		    changeDisplay(Canvas, Board, NewBoard),
+		    eventLoop(Canvas, NewBoard, NewPos, SquareType)
+		end;
+
 
 	{get_goal, Proc} -> 	 %Modificado: obtener posición final
 		Goal = get(finish),
@@ -145,7 +167,7 @@ neighbors(Board,Cell={R,C},[{OR,OC}|Rest]) ->
 		?EMPTY ->
 		    [{R+OR,C+OC}|neighbors(Board, Cell, Rest)];
 		?FINISH ->
-	    [{R+OR,C+OC}|neighbors(Board, Cell, Rest)]; % -_- para que agregue la meta a los vecinos, de otro modo se encicla y
+	    [{R+OR,C+OC}|neighbors(Board, Cell, Rest)]; % para que agregue la meta a los vecinos, de otro modo se encicla y
 	    											% nunca la encontraría.
 		_ ->
 		    neighbors(Board, Cell, Rest)
