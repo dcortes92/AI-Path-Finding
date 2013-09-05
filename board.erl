@@ -91,7 +91,7 @@ eventLoop(Canvas, Board, Pos, SquareType) ->
 	    changeDisplay(Canvas, Board, NewBoard),
 	    eventLoop(Canvas, NewBoard, Pos, SquareType);
 
-	{get_jpneighbors, Proc} -> %Modificado: obtener los vecinos sin marcarlos en el tablero.
+	{get_neighborsjp, Proc} -> %Modificado: obtener los vecinos sin marcarlos en el tablero.
 		Neighbors = neighbors(Board, Pos),
 	    io:format("neighbors ~w~n", [Neighbors]),
 	    Proc ! Neighbors,
@@ -129,10 +129,14 @@ eventLoop(Canvas, Board, Pos, SquareType) ->
 		Proc ! Goal,
 		eventLoop(Canvas, Board, Pos, SquareType);
 
-	{get_start, Proc} -> 	 %Modificado: obtener posición final
+	{get_start, Proc} -> 	 %Modificado: obtener posición inicial
 		Start = get(start),
 		Proc ! Start,
 		eventLoop(Canvas, Board, Pos, SquareType);
+
+	{get_all_board, Proc} ->   %Modificado: obtener todo el tablero
+        Proc ! Board,
+        eventLoop(Canvas, Board, Pos, SquareType);
 
 	{gs, save, click, _, _} ->
 	    FileName = gs:read(text,text),
