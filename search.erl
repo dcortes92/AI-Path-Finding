@@ -313,16 +313,16 @@ jp()->
 
 %Similar al construir ruta de A*
 jp_reconstruir_ruta([T | []], Retorno, _) -> 
-	NRetorno = lists:append(Retorno, [T]),
-	NRetorno;
+	RetornoNuevo = lists:append(Retorno, [T]),
+	RetornoNuevo;
 jp_reconstruir_ruta([H | T], Retorno, LN) ->
 	Padre = lists:nth(1, H),
 	Esta = estaPadre(Padre, LN),
 	if Esta ->
-			NRetorno = lists:append(Retorno, [H]),
-			jp_reconstruir_ruta(T, NRetorno, LN);
+		RetornoNuevo = lists:append(Retorno, [H]),
+		jp_reconstruir_ruta(T, RetornoNuevo, LN);
 	true ->
-			jp_reconstruir_ruta(T, Retorno, LN)
+		jp_reconstruir_ruta(T, Retorno, LN)
 	end.
 
 
@@ -350,14 +350,14 @@ procesarOpen(Open, Global, Final, NodosVisitados) ->
 	Coordenadas = lists:nth(1, Menor),
 	NuevaGlobal = cerrarNodo(Coordenadas, Global),
 	if Coordenadas == Final -> %Se ha llegado al objetivo
-			[NuevaOpen, NuevaGlobal];
+		[NuevaOpen, NuevaGlobal];
 	true -> 
-			%Se mueve en la lista y obtiene nuevos sucesores
-			PosSucesores = posiblesSucesores(Menor, NuevaOpen, 
-							NuevaGlobal, Final, NodosVisitados),
-			procesarOpen(lists:nth(1, PosSucesores), 
-				lists:nth(2, PosSucesores), Final, 
-				lists:nth(3, PosSucesores))
+		%Se mueve en la lista y obtiene nuevos sucesores
+		PosSucesores = posiblesSucesores(Menor, NuevaOpen, 
+						NuevaGlobal, Final, NodosVisitados),
+		procesarOpen(lists:nth(1, PosSucesores), 
+			lists:nth(2, PosSucesores), Final, 
+			lists:nth(3, PosSucesores))
 	end.
 
 %Nodo con el menor F de la lista Open, similar al A*
@@ -600,4 +600,4 @@ posicionValida(X, Y) ->
 			            true
 			    end
 			end
-    end.
+	end.
