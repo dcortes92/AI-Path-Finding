@@ -40,7 +40,7 @@ start() ->
 			   gs:create(button, load,   Win, [{x,105}, {y,?CANVASSIZE+10}, {label, {text, "Load"}}]),
 			   gs:create(button, save,   Win, [{x,205}, {y,?CANVASSIZE+10}, {label, {text, "Save"}}]),
 			   gs:create(button, reset,  Win, [{x,305}, {y,?CANVASSIZE+10}, {label, {text, "Reset"}}]),
-			   gs:create(entry,  text,   Win, [{x,505}, {y,?CANVASSIZE+10}, {text, ""}]),
+			   gs:create(entry,  text,   Win, [{x,505}, {y,?CANVASSIZE+10}, {text, "board1.txt"}]),
 			   gs:radiobutton(rb1, Win, [{label,{text,"obstacle"}}, {value, wall},   {y,  10}, {x,?CANVASSIZE+10}, {select, true}]),
 			   gs:radiobutton(rb2, Win, [{label,{text,"start"}},    {value, start},  {y,  50}, {x,?CANVASSIZE+10}]),
 			   gs:radiobutton(rb3, Win, [{label,{text,"finish"}},   {value, finish}, {y, 100}, {x,?CANVASSIZE+10}]),
