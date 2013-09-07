@@ -8,9 +8,12 @@
 %				2. A*: se basa en tomar la ruta con el menor F(x) = G(x) + H(x)
 %				3. Jumping positions: saltos de posiciones hasta llegar al objetivo. Mejor rendimiento que A*.
 %
-% Uso: search:greedy()
-%	   search:astar()
-%	   search:jp()
+% Uso: c(board).
+%	   board:start().
+%	   c(search).
+%	   search:greedy().
+%	   search:astar().
+%	   search:jp().
 %
 % Incluye comentarios de los bloques de código para cada algoritmo optimizados para el editor sublime-text 2
 
